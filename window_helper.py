@@ -1,6 +1,7 @@
 import win32gui
 import re
 from win32gui import GetWindowText, GetForegroundWindow
+import ctypes
 
 # https://danieldusek.com/feeding-key-presses-to-reluctant-games-in-python.html
 # https://gist.github.com/dusekdan/47346537bc25962b4b5a627f996a8fdf
@@ -10,12 +11,20 @@ class WindowMgr:
     def __init__ (self):
         """Constructor"""
         self._handle = None
+        self._setDpiAware()
         
     def __about__(self):
       """This is not my implementation. I found it somewhere on the
       internet, presumably on StackOverflow.com and extended it by
       the last method that returns the hwnd handle."""
       pass
+
+    def _setDpiAware(self):
+        """Ensure we get accurate physical screen coordinates (Suggested by ChatGPT)"""
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception as e:
+            print("Warning: Could not set DPI awareness:", e)
 
     def find_window(self, class_name, window_name=None):
         """find a window by its class_name"""
@@ -45,10 +54,10 @@ class WindowMgr:
         # y = rect[1]
         # w = rect[2] - x
         # h = rect[3] - y
-        return (rect[0],rect[1],rect[2],rect[3])
         # print("Window %s:" % win32gui.GetWindowText(self.get_hwnd()))
         # print("\tLocation: (%d, %d)" % (x, y))
         # print("\t    Size: (%d, %d)" % (w, h))
+        return (rect[0],rect[1],rect[2],rect[3])
 
 def correctWindowIsFocused(windowWildcard):
     windowName = GetWindowText(GetForegroundWindow())
