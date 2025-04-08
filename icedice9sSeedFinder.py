@@ -249,9 +249,13 @@ if __name__ == "__main__":
         exit(1)
     print("Window found!")
     shell = win32com.client.Dispatch("WScript.Shell")
-    input("Press Enter to focus the ChunkBase window, then hover over the 'Random' button...\n")
-    shell.SendKeys(' ')
-    window_to_foreground(w)
+    if not correctWindowIsFocused(windowWildcard):
+        input("Press Enter to focus the ChunkBase window, then hover over the 'Random' button...\n")
+        shell.SendKeys(' ')
+        window_to_foreground(w)
+
+    # DEBUG: check which biomes haven't been seen yet
+    # biomesNotSeen = set(biomeToColor.keys())
 
     with open(seedsCheckedPath, "a") as seedsCheckedFile:
         while True:
@@ -300,6 +304,13 @@ if __name__ == "__main__":
                         shouldSaveSeed = True
                         reasons.append(f"spawn-{spawnBiomeOverlap}")
                     
+                    # DEBUG: if a biome has greater than 0.0 percent, remove it from the biomesNotSeen set
+                    # for biome in biomePercents.keys():
+                    #     if biome in biomesNotSeen and biomePercents[biome] > 0.0:
+                    #         biomesNotSeen.remove(biome)
+                    # print(f"Biomes not seen: {biomesNotSeen}")
+                    # print(f"{len(biomesNotSeen)} left")
+
                     # check if all biomes are greater than 0.0
                     if all(biomePercents[biome] > 0.0 for biome in biomeToColor.keys()):
                         print(f"\tSeed contains all biomes!")
