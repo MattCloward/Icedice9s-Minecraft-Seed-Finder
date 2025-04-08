@@ -19,7 +19,7 @@ windowWildcard = "Biome Finder - Minecraft App"
 # if the value is set to 0, it will search for the highest value of the biome
 # set to {} if you don't want to prioritize any biomes
 # ex: priorityBiomes = {"pale_garden": 0.0, "plains": 0.01}
-priorityBiomes = {"pale_garden": 0.0}
+priorityBiomes = {"pale_garden": 0.008}
 # set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
 # set to [] if you don't want to check for a specific biome in the center of the map
 requestedSpawnBiomes = ["pale_garden"]
