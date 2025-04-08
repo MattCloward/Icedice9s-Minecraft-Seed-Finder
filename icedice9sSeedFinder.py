@@ -55,13 +55,14 @@ def getBiomeColors(filePath="biome_colors.tsv"):
     return biomeToColor, colorToBiome
 
 def getBiomePercentsFromImage(image, colorToBiome):
+    invalidGrayPixels = [(68, 68, 68), (208, 227, 240), (102, 107, 110), (138, 147, 154)]
     # get the pixel counts for all colors in the image
     colorCounts = {}
     totalPixels = 0
     for row in image:
         for pixel in row:
             color = tuple(pixel)
-            if color != (68, 68, 68) and color != (208, 227, 240): # skip the gray pixels around the map
+            if color not in invalidGrayPixels: # skip the gray pixels around the map
                 if color in colorCounts:
                     colorCounts[tuple(pixel)] += 1
                 else:
@@ -80,12 +81,12 @@ def getBiomePercentsFromImage(image, colorToBiome):
         else:
             print(f"WARNING: {color} not in biomeToColor dictionary!")
             # DEBUG: display a mask of the unknown color in the image
-            # mask = np.zeros(image.shape, dtype=np.uint8)
-            # mask[image == color] = 255
-            # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-            # cv2.imshow("Unknown Color", mask)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+            mask = np.zeros(image.shape, dtype=np.uint8)
+            mask[image == color] = 255
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            cv2.imshow("Unknown Color", mask)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
     # add any missing biomes to the biomePercents dictionary with a value of 0.0
     for biome in colorToBiome.values():
         if biome not in biomePercents:
