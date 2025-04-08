@@ -1,7 +1,3 @@
-# Go to https://www.chunkbase.com/apps/biome-finder#seed=0&platform=java_1_21_5&dimension=overworld&x=0&z=0&zoom=0
-# Deselect the "Grid Lines" checkbox
-# Make the window as small as possible (but not too small) so that the map and the "Random" button are visible
-
 import os
 import numpy as np
 import cv2
@@ -13,6 +9,21 @@ from pynput.mouse import Button
 from pynput.mouse import Controller as MouseController
 from window_helper import WindowMgr, correctWindowIsFocused
 import win32com.client
+
+# set the time between clicks in seconds (change if clicks happen before the map is fully loaded)
+timeBetweenClicks = 1
+# the name of the Chrome tab to search for
+windowWildcard = "Biome Finder - Minecraft App"
+# set the list of biomes to prioritize (use the same names as in biome_colors.tsv)
+# set to [] if you don't want to prioritize any biomes
+priorityBiomes = ["pale_garden"]
+# set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
+# set to [] if you don't want to check for a specific biome in the center of the map
+requestedSpawnBiomes = ["pale_garden"]
+# the path where the information on saved seeds will be saved
+seedInfoPath = "savedSeedsInfo.tsv"
+# the path where all checked seeds will be saved
+seedsCheckedPath = "seedsChecked.tsv"
 
 def hexToRgb(hexValue):
     hexValue = hexValue.lower().replace('#', '')
@@ -193,21 +204,6 @@ def getSeed(shell):
     return seed
 
 if __name__ == "__main__":
-    # set the time between clicks in seconds (change if clicks happen before the map is fully loaded)
-    timeBetweenClicks = 1
-    # the name of the Chrome tab to search for
-    windowWildcard = "Biome Finder - Minecraft App"
-    # set the list of biomes to prioritize (use the same names as in biome_colors.tsv)
-    # set to [] if you don't want to prioritize any biomes
-    priorityBiomes = ["pale_garden"]
-    # set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
-    # set to [] if you don't want to check for a specific biome in the center of the map
-    requestedSpawnBiomes = ["pale_garden"]
-    # the path where the information on saved seeds will be saved
-    seedInfoPath = "savedSeedsInfo.tsv"
-    # the path where all checked seeds will be saved
-    seedsCheckedPath = "seedsChecked.tsv"
-
     biomeToColor, colorToBiome = getBiomeColors()
     
     keyboard = Controller()
