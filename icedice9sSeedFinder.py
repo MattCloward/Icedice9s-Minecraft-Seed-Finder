@@ -161,8 +161,8 @@ def getSpawnBiomes(map_screen, colorToBiome):
 
 def crop_map(image):
     # Step 1: Define mask that gets the gray pixels around the top left corner of the map
-    lowerBound = np.array([60, 60, 60])  # lower hue, saturation, value
-    upperBound = np.array([80, 80, 80])  # upper hue, saturation, value
+    lowerBound = np.array([68, 68, 68])  # lower hue, saturation, value
+    upperBound = np.array([68, 68, 68])  # upper hue, saturation, value
     # Create mask where top left corner is white
     mask = cv2.inRange(image, lowerBound, upperBound)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -200,7 +200,7 @@ def getSeed(shell):
     shell.SendKeys('^l')  # Ctrl + L to focus the address bar
     time.sleep(0.2)  # small delay to ensure the address bar is focused
     shell.SendKeys('^c')  # Ctrl + C to copy the URL
-    time.sleep(0.2)  # small delay to ensure the URL is copied
+    time.sleep(0.5)  # small delay to ensure the URL is copied
     url = os.popen('powershell Get-Clipboard').read().strip()  # read the clipboard content
     seed = url.split("seed=")[1].split("&")[0]  # extract the seed from the URL
     
