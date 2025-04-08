@@ -3,7 +3,7 @@ plains	#8db360
 desert	#fa9418
 windswept_hills	#606060
 forest	#056621
-taiga	#0b6a5f
+taiga	#0b6659
 swamp	#07f9b2
 river	#0000ff
 nether_wastes	#572526
@@ -19,9 +19,9 @@ desert_hills	#d25f12
 wooded_hills	#22551c
 taiga_hills	#163933
 mountain_edge	#72789a
-jungle	#507b0a
+jungle	#537b09
 jungle_hills	#2c4205
-sparse_jungle	#60930f
+sparse_jungle	#628b17
 deep_ocean	#000030
 stony_shore	#a2a284
 snowy_beach	#faf0c0
@@ -74,7 +74,7 @@ shattered_savanna_plateau	#cfc58c
 eroded_badlands	#ff6d3d
 modified_wooded_badlands_plateau	#d8bf8d
 modified_badlands_plateau	#f2b48d
-bamboo_jungle	#849500
+bamboo_jungle	#768e14
 bamboo_jungle_hills	#5c6c04
 soul_sand_valley	#4d3a2e
 crimson_forest	#981a11
@@ -82,14 +82,13 @@ warped_forest	#49907b
 basalt_deltas	#645f63
 dripstone_caves	#4e3012
 lush_caves	#283c00
-meadow	#60a445
-grove	#47726c
-snowy_slopes	#c4c4c4
-jagged_peaks	#dcdcc8
-frozen_peaks	#b0b3ce
-stony_peaks	#7b8f74
+meadow	#8ca470
+grove	#dfece5
+snowy_slopes	#daf1f1
+jagged_peaks	#e3eced
+frozen_peaks	#eafbfb
+stony_peaks	#d1d1d1
 deep_dark	#031f29
-mangrove_swamp	#2ccc8e
-cherry_grove	#ff91c8
-
+mangrove_swamp	#24c48e
+cherry_grove	#f7b9dc
 pale_garden	#6c6f96
