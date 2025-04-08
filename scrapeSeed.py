@@ -1,6 +1,6 @@
 # Go to https://www.chunkbase.com/apps/biome-finder#seed=0&platform=java_1_21_5&dimension=overworld&x=0&z=0&zoom=0
 # Deselect the "Grid Lines" checkbox
-# Make sure the whole map is visible as well as the "Random" button
+# Make the window as small as possible (but not too small) so that the map and the "Random" button are visible
 
 import os
 import numpy as np
@@ -21,7 +21,7 @@ def hexToRgb(hexValue):
     b = int(hexValue[4:6], 16)
     return (r, g, b)
 
-# get the biome colors from the tsv file (bgr format)
+# get the biome colors from the tsv file (rgb format)
 def getBiomeColors(filePath="biome_colors.tsv"):
     biomeToColor = {}
     colorToBiome = {}
@@ -34,23 +34,25 @@ def getBiomeColors(filePath="biome_colors.tsv"):
             biome = lineItems[0]
             hex = lineItems[1]
             rgb = hexToRgb(hex)
-            bgr = (rgb[2], rgb[1], rgb[0])
-            biomeToColor[biome] = bgr
-            if bgr in colorToBiome:
-                print(f"WARNING: {bgr} already exists in colorToBiome, overwriting {colorToBiome[bgr]} with {biome}")
-            colorToBiome[bgr] = biome
+            biomeToColor[biome] = rgb
+            if rgb in colorToBiome:
+                print(f"WARNING: {rgb} already exists in colorToBiome, overwriting {colorToBiome[rgb]} with {biome}")
+            colorToBiome[rgb] = biome
     return biomeToColor, colorToBiome
 
 def getBiomePercentsFromImage(image, colorToBiome):
     # get the pixel counts for all colors in the image
     colorCounts = {}
-    totalPixels = image.shape[0] * image.shape[1]
+    totalPixels = 0
     for row in image:
         for pixel in row:
-            if tuple(pixel) in colorCounts:
-                colorCounts[tuple(pixel)] += 1
-            else:
-                colorCounts[tuple(pixel)] = 1
+            color = tuple(pixel)
+            if color != (68, 68, 68) and color != (208, 227, 240): # skip the gray pixels around the map
+                if color in colorCounts:
+                    colorCounts[tuple(pixel)] += 1
+                else:
+                    colorCounts[tuple(pixel)] = 1
+                totalPixels += 1
 
     biomePercents = {}
     for color, count in colorCounts.items():
@@ -63,6 +65,17 @@ def getBiomePercentsFromImage(image, colorToBiome):
             biomePercents[biome] = percent
         else:
             print(f"WARNING: {color} not in biomeToColor dictionary!")
+            # DEBUG: display a mask of the unknown color in the image
+            # mask = np.zeros(image.shape, dtype=np.uint8)
+            # mask[image == color] = 255
+            # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            # cv2.imshow("Unknown Color", mask)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+    # add any missing biomes to the biomePercents dictionary with a value of 0.0
+    for biome in colorToBiome.values():
+        if biome not in biomePercents:
+            biomePercents[biome] = 0.0
     return biomePercents
 
 def window_to_foreground(w):
@@ -121,15 +134,16 @@ def getSpawnBiomes(map_screen, colorToBiome):
             else:
                 spawnImageColors[tuple(pixel)] = 1
 
-    spawnBiomes = set()
+    spawnBiomes = {}
     for color, count in spawnImageColors.items():
         # check if the color is in the colorToBiome dictionary
         if color in colorToBiome:
             biome = colorToBiome[color]
-            spawnBiomes.add(biome)
+            spawnBiomes[biome] = count
     if not spawnBiomes:
         return None
-    return spawnBiomes
+    # Sort spawnBiomes by the count of its color in descending order
+    return [biome for biome, _ in sorted(spawnBiomes.items(), key=lambda item: item[1], reverse=True)]
 
 def crop_map(image):
     # Step 1: Define mask that gets the gray pixels around the top left corner of the map
@@ -162,7 +176,9 @@ def saveSeed(seedID, seed, reason, imagePath, screen, spawnBiomesStr, biomePerce
         for biome in sorted(biomes):
             writeString += f"{biomePercents[biome]}\t"
         seedInfoFile.write(writeString + "\n")
-    cv2.imwrite(imagePath, screen)
+    # convert to BGR format for OpenCV writing
+    screen_bgr = cv2.cvtColor(screen, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(imagePath, screen_bgr)
     print(f"\t'{seed}' saved because '{reason}' to '{imagePath}'")
 
 def getSeed(shell):
@@ -189,6 +205,8 @@ if __name__ == "__main__":
     requestedSpawnBiomes = ["pale_garden"]
     # the path where the information on saved seeds will be saved
     seedInfoPath = "savedSeedsInfo.tsv"
+    # the path where all checked seeds will be saved
+    seedsCheckedPath = "seedsChecked.tsv"
 
     biomeToColor, colorToBiome = getBiomeColors()
     
@@ -212,6 +230,15 @@ if __name__ == "__main__":
                 seedInfoFile.write(f"{biome}\t")
             seedInfoFile.write("\n")
 
+    # if the seedsCheckedPath file does not exist, create it, otherwise read it
+    seedsChecked = set()
+    if os.path.exists(seedsCheckedPath):
+        with open(seedsCheckedPath, "r") as seedsCheckedFile:
+            seedsChecked = set(seedsCheckedFile.read().splitlines())
+    else:
+        with open(seedsCheckedPath, "w") as seedsCheckedFile:
+            seedsCheckedFile.write("")
+
     print("Searching for ChunkBase window...")
     w.find_window_wildcard(windowWildcard)
     if w.get_hwnd() == None:
@@ -219,70 +246,90 @@ if __name__ == "__main__":
         exit(1)
     print("Window found!")
     shell = win32com.client.Dispatch("WScript.Shell")
-    input("Press enter once your mouse is over the 'Random' button...")
+    input("Press Enter to focus the ChunkBase window, then hover over the 'Random' button...\n")
     shell.SendKeys(' ')
     window_to_foreground(w)
 
-    while True:
-        # wait for map to load
-        time.sleep(timeBetweenClicks)
-        # get the region of the window
-        region = w.get_window_region()
-        # get an image of the window region, in RGB format
-        screen = grab_screen(region=region)
-        cropped_screen = crop_map(screen)        
+    with open(seedsCheckedPath, "a") as seedsCheckedFile:
+        while True:
+            # wait for map to load
+            time.sleep(timeBetweenClicks)
+            if correctWindowIsFocused(windowWildcard):
+                # get the region of the window
+                region = w.get_window_region()
+                # get an image of the window region, in RGB format
+                screen = grab_screen(region=region)
+                cropped_screen = crop_map(screen)
+                # make the screen smaller for processing
+                # cropped_screen = cv2.resize(cropped_screen, (cropped_screen.shape[1] // 4, cropped_screen.shape[0] // 4))      
 
-        # for debugging if the window is focusing on the right place
-        # resized_screen = cv2.resize(cropped_screen, (cropped_screen.shape[1] // 4, cropped_screen.shape[0] // 4))
-        # cv2.imshow('window', resized_screen)
-        # cv2.waitKey(0)
-        if correctWindowIsFocused(windowWildcard):
-            seed = getSeed(shell)
+                # for debugging if the window is focusing on the right place
+                # resized_screen = cv2.resize(cropped_screen, (cropped_screen.shape[1] // 4, cropped_screen.shape[0] // 4))
+                # cv2.imshow('window', resized_screen)
+                # cv2.waitKey(0)
 
-            # put the screen captures in np format for processing
-            np_image = np.array(screen)
-            map_image = np.array(cropped_screen)
+                seed = getSeed(shell)
+                if seed in seedsChecked:
+                    print(f"Seed {seed} already checked!")
+                else:
+                    shouldSaveSeed = False
+                    reasons = []
+                    # put the screen captures in np format for processing
+                    np_image = np.array(screen)
+                    map_image = np.array(cropped_screen)
 
-            # get the biome percents for priority biomes from the image and print them
-            biomePercents = getBiomePercentsFromImage(map_image, colorToBiome)
-            imageStats = "".join([f"{biome}: {biomePercents[biome]:.2}" for biome in priorityBiomes])
+                    # get the biome percents for priority biomes from the image and print them
+                    biomePercents = getBiomePercentsFromImage(map_image, colorToBiome)
+                    imageStats = "".join([f"{biome}: {biomePercents[biome]:.2}" for biome in priorityBiomes])
 
-            # get the spawn biome from the center of the map
-            spawnBiomes = getSpawnBiomes(map_image, colorToBiome)
-            if spawnBiomes is None:
-                spawnBiomesStr = "None"
+                    # get the spawn biome from the center of the map
+                    spawnBiomes = getSpawnBiomes(map_image, colorToBiome)
+                    if spawnBiomes is None:
+                        spawnBiomesStr = "None"
+                    else:
+                        spawnBiomesStr = "|".join(spawnBiomes)
+
+                    print(f"seed: {seed}; {imageStats}; spawn: {spawnBiomesStr}")
+
+                    # save the seed if a requested spawn biome is one of the actual spawn biomes
+                    spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
+                    if spawnBiomeOverlap:
+                        spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
+                        print(f"\tFound {spawnBiomeOverlap} biome(s) at spawn!")
+                        shouldSaveSeed = True
+                        reasons.append(f"spawn-{spawnBiomeOverlap}")
+                    
+                    # check if all biomes are greater than 0.0
+                    if all(biomePercents[biome] > 0.0 for biome in biomeToColor.keys()):
+                        print(f"\tSeed contains all biomes!")
+                        shouldSaveSeed = True
+                        reasons.append("all-biomes")
+                    else:
+                        # check if any of the priority biomes are larger than the best biome percents
+                        # and save the image and the seedID if they are
+                        for biome in priorityBiomes:
+                            if biome in biomePercents and biomePercents[biome] > priorityBiomesToBest[biome]:
+                                print(f"\tFound new best {biome} biome!")
+                                priorityBiomesToBest[biome] = biomePercents[biome]
+
+                                shouldSaveSeed = True
+                                reasons.append(f"best-{biome}-{biomePercents[biome]:.2}")
+
+                    if shouldSaveSeed:
+                        imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
+                        saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
+                        seedID += 1
+
+                    # save the seed to the seedsChecked file
+                    seedsChecked.add(seed)
+                    seedsCheckedFile.write(seed + "\n")
+                    seedsCheckedFile.flush()
             else:
-                spawnBiomesStr = "|".join(spawnBiomes)
-
-            print(f"{imageStats}; spawn: {spawnBiomesStr}")
-
-            # save the seed if a requested spawn biome is one of the actual spawn biomes
-            spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
-            if spawnBiomeOverlap:
-                spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
-                print(f"\tFound {spawnBiomeOverlap} biome(s) at spawn!")
-                imagePath = f"./savedSeeds/{seedID}.jpeg"
-                saveSeed(seedID, seed, f"spawn-{spawnBiomeOverlap}", imagePath, screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
-                seedID += 1
-            else:
-                # check if any of the priority biomes are larger than the best biome percents
-                # and save the image and the seedID if they are
-                for biome in priorityBiomes:
-                    if biome in biomePercents:
-                        if biomePercents[biome] > priorityBiomesToBest[biome]:
-                            print(f"\tFound new best {biome} biome!")
-                            priorityBiomesToBest[biome] = biomePercents[biome]
-
-                            imagePath = f"./savedSeeds/{seedID}.jpeg"
-                            saveSeed(seedID, seed, f"best-{biome}", imagePath, screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
-                            seedID += 1
-                            break
-        else:
-            print("Window is no longer in focus!")
-        if correctWindowIsFocused(windowWildcard):
-            m.press(button=Button.left)
-            m.release(button=Button.left)
-                
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-            cv2.destroyAllWindows()
-            break
+                print("Window not in focus!")
+            if correctWindowIsFocused(windowWildcard):
+                m.press(button=Button.left)
+                m.release(button=Button.left)
+                    
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                cv2.destroyAllWindows()
+                break
