@@ -194,7 +194,7 @@ def getSeed(shell):
 
 if __name__ == "__main__":
     # set the time between clicks in seconds (change if clicks happen before the map is fully loaded)
-    timeBetweenClicks = 2
+    timeBetweenClicks = 1
     # the name of the Chrome tab to search for
     windowWildcard = "Biome Finder - Minecraft App"
     # set the list of biomes to prioritize (use the same names as in biome_colors.tsv)
