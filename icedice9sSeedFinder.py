@@ -23,6 +23,11 @@ priorityBiomes = {"pale_garden": 0.0}
 # set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
 # set to [] if you don't want to check for a specific biome in the center of the map
 requestedSpawnBiomes = ["pale_garden"]
+# set the save mode for all biomes. 
+# 0 = save all seeds with all biomes
+# 1 = seeds must have all biomes to be saved, but other requirements must also be met
+# 2 = don't check for all biomes
+allBiomesMode = 1
 # the path where the information on saved seeds will be saved
 seedInfoPath = "savedSeedsInfo.tsv"
 # the path where all checked seeds will be saved
@@ -195,15 +200,22 @@ def saveSeed(seedID, seed, reason, imagePath, screen, spawnBiomesStr, biomePerce
     cv2.imwrite(imagePath, screen_bgr)
     print(f"\t'{seed}' saved because '{reason}' to '{imagePath}'")
 
-def getSeed(shell):
-    # extract the URL of the window in the foreground
-    shell.SendKeys('^l')  # Ctrl + L to focus the address bar
-    time.sleep(0.2)  # small delay to ensure the address bar is focused
-    shell.SendKeys('^c')  # Ctrl + C to copy the URL
-    time.sleep(0.5)  # small delay to ensure the URL is copied
-    url = os.popen('powershell Get-Clipboard').read().strip()  # read the clipboard content
-    seed = url.split("seed=")[1].split("&")[0]  # extract the seed from the URL
+def getSeed(shell, previousSeed):
+    seed = previousSeed
+    # if the seed is the same as the previous seed, check the URL again (it may have since updated)
+    timesLeftToCheck = 3
+    while seed == previousSeed and timesLeftToCheck > 0:
+        # extract the URL of the window in the foreground
+        shell.SendKeys('^l')  # Ctrl + L to focus the address bar
+        time.sleep(0.2)  # small delay to ensure the address bar is focused
+        shell.SendKeys('^c')  # Ctrl + C to copy the URL
+        time.sleep(0.5)  # small delay to ensure the URL is copied
+        url = os.popen('powershell Get-Clipboard').read().strip()  # read the clipboard content
+        seed = url.split("seed=")[1].split("&")[0]  # extract the seed from the URL
+        timesLeftToCheck -= 1
     
+    if timesLeftToCheck == 0:
+        print("WARNING: Couldn't get a new seed from the URL! Is your mouse over the 'Random' button?")    
     return seed
 
 if __name__ == "__main__":
@@ -258,6 +270,7 @@ if __name__ == "__main__":
     # biomesNotSeen = set(biomeToColor.keys())
 
     with open(seedsCheckedPath, "a") as seedsCheckedFile:
+        seed = 0
         while True:
             # wait for map to load
             time.sleep(timeBetweenClicks)
@@ -273,11 +286,12 @@ if __name__ == "__main__":
                 # cv2.imshow('window', resized_screen)
                 # cv2.waitKey(0)
 
-                seed = getSeed(shell)
+                seed = getSeed(shell, seed)
                 if seed in seedsChecked:
                     print(f"Seed {seed} already checked!")
                 else:
                     shouldSaveSeed = False
+                    containsAllBiomes = False
                     reasons = []
                     # put the screen captures in np format for processing
                     np_image = np.array(screen)
@@ -296,14 +310,6 @@ if __name__ == "__main__":
 
                     print(f"seed: {seed}; {imageStats}; spawn: {spawnBiomesStr}")
 
-                    # save the seed if a requested spawn biome is one of the actual spawn biomes
-                    spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
-                    if spawnBiomeOverlap:
-                        spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
-                        print(f"\tFound {spawnBiomeOverlap} biome(s) at spawn!")
-                        shouldSaveSeed = True
-                        reasons.append(f"spawn-{spawnBiomeOverlap}")
-                    
                     # DEBUG: if a biome has greater than 0.0 percent, remove it from the biomesNotSeen set
                     # for biome in biomePercents.keys():
                     #     if biome in biomesNotSeen and biomePercents[biome] > 0.0:
@@ -312,11 +318,24 @@ if __name__ == "__main__":
                     # print(f"{len(biomesNotSeen)} left")
 
                     # check if all biomes are greater than 0.0
-                    if all(biomePercents[biome] > 0.0 for biome in biomeToColor.keys()):
-                        print(f"\tSeed contains all biomes!")
-                        shouldSaveSeed = True
-                        reasons.append("all-biomes")
+                    if allBiomesMode < 2:
+                        containsAllBiomes = all(biomePercents[biome] > 0.0 for biome in biomeToColor.keys())
+                    
+                    if allBiomesMode == 1 and not containsAllBiomes:
+                        print("\tSeed does not contain all biomes!")
                     else:
+                        if containsAllBiomes:
+                            print(f"\tSeed contains all biomes!")
+                            reasons.append("all-biomes")
+
+                        # save the seed if a requested spawn biome is one of the actual spawn biomes
+                        spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
+                        if spawnBiomeOverlap:
+                            spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
+                            print(f"\tFound {spawnBiomeOverlap} biome(s) at spawn!")
+                            shouldSaveSeed = True
+                            reasons.append(f"spawn-{spawnBiomeOverlap}")
+
                         # check if any of the priority biomes are larger than the best biome percents
                         # and save the image and the seedID if they are
                         for biome, biomeCutoff in priorityBiomes.items():
@@ -336,10 +355,10 @@ if __name__ == "__main__":
                                         shouldSaveSeed = True
                                         reasons.append(f"best-{biome}-{biomePercents[biome]:.2}")
 
-                    if shouldSaveSeed:
-                        imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
-                        saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
-                        seedID += 1
+                        if shouldSaveSeed:
+                            imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
+                            saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
+                            seedID += 1
 
                     # save the seed to the seedsChecked file
                     seedsChecked.add(seed)
