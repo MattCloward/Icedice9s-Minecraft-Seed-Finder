@@ -14,9 +14,12 @@ import win32com.client
 timeBetweenClicks = 1
 # the name of the Chrome tab to search for
 windowWildcard = "Biome Finder - Minecraft App"
-# set the list of biomes to prioritize (use the same names as in biome_colors.tsv)
-# set to [] if you don't want to prioritize any biomes
-priorityBiomes = ["pale_garden"]
+# set a dictionary of biomes to prioritize (use the same names as in biome_colors.tsv)
+# the key is the biome name and the value is the cutoff value for the biome
+# if the value is set to 0, it will search for the highest value of the biome
+# set to {} if you don't want to prioritize any biomes
+# ex: priorityBiomes = {"pale_garden": 0.0, "plains": 0.01}
+priorityBiomes = {"pale_garden": 0.0}
 # set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
 # set to [] if you don't want to check for a specific biome in the center of the map
 requestedSpawnBiomes = ["pale_garden"]
@@ -211,7 +214,7 @@ if __name__ == "__main__":
     m = MouseController()
 
     priorityBiomesToBest = {}
-    for biome in priorityBiomes:
+    for biome in priorityBiomes.keys():
         priorityBiomesToBest[biome] = 0
 
     seedID, priorityBiomesToBest = readSeedInfoFile(seedInfoPath, priorityBiomesToBest)
@@ -260,8 +263,6 @@ if __name__ == "__main__":
                 # get an image of the window region, in RGB format
                 screen = grab_screen(region=region)
                 cropped_screen = crop_map(screen)
-                # make the screen smaller for processing
-                # cropped_screen = cv2.resize(cropped_screen, (cropped_screen.shape[1] // 4, cropped_screen.shape[0] // 4))      
 
                 # for debugging if the window is focusing on the right place
                 # resized_screen = cv2.resize(cropped_screen, (cropped_screen.shape[1] // 4, cropped_screen.shape[0] // 4))
@@ -280,7 +281,7 @@ if __name__ == "__main__":
 
                     # get the biome percents for priority biomes from the image and print them
                     biomePercents = getBiomePercentsFromImage(map_image, colorToBiome)
-                    imageStats = "".join([f"{biome}: {biomePercents[biome]:.2}" for biome in priorityBiomes])
+                    imageStats = "|".join([f"{biome}:{biomePercents[biome]:.2}" for biome in priorityBiomes.keys()])
 
                     # get the spawn biome from the center of the map
                     spawnBiomes = getSpawnBiomes(map_image, colorToBiome)
@@ -307,13 +308,22 @@ if __name__ == "__main__":
                     else:
                         # check if any of the priority biomes are larger than the best biome percents
                         # and save the image and the seedID if they are
-                        for biome in priorityBiomes:
-                            if biome in biomePercents and biomePercents[biome] > priorityBiomesToBest[biome]:
-                                print(f"\tFound new best {biome} biome!")
-                                priorityBiomesToBest[biome] = biomePercents[biome]
-
-                                shouldSaveSeed = True
-                                reasons.append(f"best-{biome}-{biomePercents[biome]:.2}")
+                        for biome, biomeCutoff in priorityBiomes.items():
+                            if biome in biomePercents:
+                                # if the biomeCutoff is greater than 0.0, check if the biome percent is greater than the cutoff
+                                if biomeCutoff > 0.0:
+                                    if biomePercents[biome] > biomeCutoff:
+                                        print(f"\t{biome}: {biomePercents[biome]} > cutoff:{biomeCutoff}!")
+                                        priorityBiomesToBest[biome] = biomePercents[biome]
+                                        shouldSaveSeed = True
+                                        reasons.append(f"found-{biome}-{biomePercents[biome]:.2}")
+                                # if the biomeCutoff is 0.0, check if the biome percent is greater than the best biome percent seen so far
+                                elif biomeCutoff == 0.0:
+                                    if biomePercents[biome] > priorityBiomesToBest[biome]:
+                                        print(f"\tFound new best {biome} biome!")
+                                        priorityBiomesToBest[biome] = biomePercents[biome]
+                                        shouldSaveSeed = True
+                                        reasons.append(f"best-{biome}-{biomePercents[biome]:.2}")
 
                     if shouldSaveSeed:
                         imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
