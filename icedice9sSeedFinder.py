@@ -198,9 +198,9 @@ def saveSeed(seedID, seed, reason, imagePath, screen, spawnBiomesStr, biomePerce
 def getSeed(shell):
     # extract the URL of the window in the foreground
     shell.SendKeys('^l')  # Ctrl + L to focus the address bar
-    time.sleep(0.1)  # small delay to ensure the address bar is focused
+    time.sleep(0.2)  # small delay to ensure the address bar is focused
     shell.SendKeys('^c')  # Ctrl + C to copy the URL
-    time.sleep(0.1)  # small delay to ensure the URL is copied
+    time.sleep(0.2)  # small delay to ensure the URL is copied
     url = os.popen('powershell Get-Clipboard').read().strip()  # read the clipboard content
     seed = url.split("seed=")[1].split("&")[0]  # extract the seed from the URL
     
