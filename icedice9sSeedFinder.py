@@ -235,6 +235,10 @@ if __name__ == "__main__":
         with open(seedsCheckedPath, "w") as seedsCheckedFile:
             seedsCheckedFile.write("")
 
+    # create the savedSeeds directory if it doesn't exist
+    if not os.path.exists("savedSeeds"):
+        os.makedirs("savedSeeds")
+
     print("Searching for ChunkBase window...")
     w.find_window_wildcard(windowWildcard)
     if w.get_hwnd() == None:
@@ -322,6 +326,9 @@ if __name__ == "__main__":
                     seedsCheckedFile.flush()
             else:
                 print("Window not in focus!")
+                input("Press Enter to refocus...\n")
+                shell.SendKeys(' ')
+                window_to_foreground(w)
             if correctWindowIsFocused(windowWildcard):
                 m.press(button=Button.left)
                 m.release(button=Button.left)
