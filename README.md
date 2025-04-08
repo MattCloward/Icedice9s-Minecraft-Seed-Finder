@@ -28,7 +28,7 @@ pip install -r requirements.txt
 To change what biomes are prioritized in your search, open the [icedice9sSeedFinder.py](./icedice9sSeedFinder.py) file and modify the variables near the top of the file. The names of all biomes you can prioritize are found in [biome_colors.tsv](./biome_colors.tsv)
 1. `priorityBiomes`- a dictionary of biomes to prioritize. The keys of the dictionary are biomes and the values are cutoffs. If a biome's cutoff is set to 0, the tool will try to find seeds with the largest percent of those biomes present. If the cutoff is set to a value greater than 0, seeds will be saved if their percent is greater than the cutoff. Setting the dictionary to {} will make the tool not prioritize any biomes.
 2. `requestedSpawnBiomes`- a list of biomes to look for near spawn. Setting this to [] will make the tool not prioritize any spawn biomes. The spawn biomes are determined by taking 20x20 pixels in the center of the saved image and identifying the biomes present. They are saved in [savedSeedsInfo.tsv](./savedSeedsInfo.tsv) in the order of prevalence in that region, greatest to least. This tool does not account for oceans at 0,0 which might affect spawn placement.
-3. This tool automatically saves any seeds in which all biomes are present.
+3. `allBiomesMode` changes how seeds with all biomes are handled. Mode 0 saves all seeds with all biomes regardless of other criteria. Mode 1 requires that all biomes must be present in addition to other criteria. Mode 2 doesn't test for all biomes.
 
 ## Deleting All Saved Data
 **WARNING: THIS CANNOT BE UNDONE**

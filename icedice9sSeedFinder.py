@@ -328,6 +328,8 @@ if __name__ == "__main__":
                         if containsAllBiomes:
                             print(f"\tSeed contains all biomes!")
                             reasons.append("all-biomes")
+                            if allBiomesMode == 0:
+                                shouldSaveSeed = True
 
                         # save the seed if a requested spawn biome is one of the actual spawn biomes
                         spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
