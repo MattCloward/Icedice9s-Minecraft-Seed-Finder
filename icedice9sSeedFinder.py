@@ -15,7 +15,7 @@ timeBetweenClicks = 1
 # the name of the Chrome tab to search for
 windowWildcard = "Biome Finder - Minecraft App"
 # set a dictionary of biomes to prioritize (use the same names as in biome_colors.tsv)
-# the key is the biome name and the value is the cutoff value for the biome
+# the key is the biome name and the value is the fraction cutoff value for the biome (the fraction of the map that is your biome)
 # if the value is set to 0, it will search for the highest value of the biome
 # set to {} if you don't want to prioritize any biomes
 # ex: priorityBiomes = {"pale_garden": 0.0, "plains": 0.01}
@@ -59,7 +59,7 @@ def getBiomeColors(filePath="biome_colors.tsv"):
             colorToBiome[rgb] = biome
     return biomeToColor, colorToBiome
 
-def getBiomePercentsFromImage(image, colorToBiome):
+def getBiomeFractionsFromImage(image, colorToBiome):
     invalidGrayPixels = [(68, 68, 68), (208, 227, 240), (102, 107, 110), (138, 147, 154)]
     # get the pixel counts for all colors in the image
     colorCounts = {}
@@ -74,15 +74,15 @@ def getBiomePercentsFromImage(image, colorToBiome):
                     colorCounts[tuple(pixel)] = 1
                 totalPixels += 1
 
-    biomePercents = {}
+    biomeFractions = {}
     for color, count in colorCounts.items():
         # check if the color is in the biomeToColor dictionary
         if color in colorToBiome:
             # get the biome name from the colorToBiome dictionary
             biome = colorToBiome[color]
-            # calculate the percent of pixels that match the color
-            percent = count / totalPixels
-            biomePercents[biome] = percent
+            # calculate the fraction of pixels that match the color
+            fraction = count / totalPixels
+            biomeFractions[biome] = fraction
         else:
             print(f"WARNING: {color} not in biomeToColor dictionary!")
             # DEBUG: display a mask of the unknown color in the image
@@ -92,11 +92,11 @@ def getBiomePercentsFromImage(image, colorToBiome):
             cv2.imshow("Unknown Color", mask)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-    # add any missing biomes to the biomePercents dictionary with a value of 0.0
+    # add any missing biomes to the biomeFractions dictionary with a value of 0.0
     for biome in colorToBiome.values():
-        if biome not in biomePercents:
-            biomePercents[biome] = 0.0
-    return biomePercents
+        if biome not in biomeFractions:
+            biomeFractions[biome] = 0.0
+    return biomeFractions
 
 def window_to_foreground(w):
    w.set_foreground()
@@ -121,12 +121,12 @@ def readSeedInfoFile(seedInfoPath, priorityBiomesToBest):
                     if line == "" or line.startswith("#"):
                         continue
                     lineItems = line.split("\t")
-                    # get the biome percents for the line
-                    linePriorityBiomePercents = {biome: float(lineItems[index]) for biome, index in priorityBiomesToIndex.items()}
-                    # check if any of the priority biomes are larger than the best biome percents
-                    for biome, linePercent in linePriorityBiomePercents.items():
-                        if linePercent > priorityBiomesToBest[biome]:
-                            priorityBiomesToBest[biome] = linePercent
+                    # get the biome fractions for the line
+                    linePriorityBiomeFractions = {biome: float(lineItems[index]) for biome, index in priorityBiomesToIndex.items()}
+                    # check if any of the priority biomes are larger than the best biome fractions
+                    for biome, lineFraction in linePriorityBiomeFractions.items():
+                        if lineFraction > priorityBiomesToBest[biome]:
+                            priorityBiomesToBest[biome] = lineFraction
                 return seedID + 1, priorityBiomesToBest
     return 0, priorityBiomesToBest
 
@@ -190,11 +190,11 @@ def crop_map(image):
 
     return croppedMap
 
-def saveSeed(seedID, seed, reason, imagePath, screen, spawnBiomesStr, biomePercents, biomes):
+def saveSeed(seedID, seed, reason, imagePath, screen, spawnBiomesStr, biomeFractions, biomes):
     with open(seedInfoPath, "a") as seedInfoFile:
         writeString = f"{seedID}\t{seed}\t{reason}\t{imagePath}\t{spawnBiomesStr}\t"
         for biome in sorted(biomes):
-            writeString += f"{biomePercents[biome]}\t"
+            writeString += f"{biomeFractions[biome]}\t"
         seedInfoFile.write(writeString + "\n")
     # convert to BGR format for OpenCV writing
     screen_bgr = cv2.cvtColor(screen, cv2.COLOR_RGB2BGR)
@@ -298,9 +298,9 @@ if __name__ == "__main__":
                     np_image = np.array(screen)
                     map_image = np.array(cropped_screen)
 
-                    # get the biome percents for priority biomes from the image and print them
-                    biomePercents = getBiomePercentsFromImage(map_image, colorToBiome)
-                    imageStats = "|".join([f"{biome}:{biomePercents[biome]:.2}" for biome in priorityBiomes.keys()])
+                    # get the biome fractions for priority biomes from the image and print them
+                    biomeFractions = getBiomeFractionsFromImage(map_image, colorToBiome)
+                    imageStats = "|".join([f"{biome}:{biomeFractions[biome]:.2}" for biome in priorityBiomes.keys()])
 
                     # get the spawn biome from the center of the map
                     spawnBiomes = getSpawnBiomes(map_image, colorToBiome)
@@ -311,16 +311,16 @@ if __name__ == "__main__":
 
                     print(f"seed: {seed}; {imageStats}; spawn: {spawnBiomesStr}")
 
-                    # DEBUG: if a biome has greater than 0.0 percent, remove it from the biomesNotSeen set
-                    # for biome in biomePercents.keys():
-                    #     if biome in biomesNotSeen and biomePercents[biome] > 0.0:
+                    # DEBUG: if a biome has greater than 0.0 fraction, remove it from the biomesNotSeen set
+                    # for biome in biomeFractions.keys():
+                    #     if biome in biomesNotSeen and biomeFractions[biome] > 0.0:
                     #         biomesNotSeen.remove(biome)
                     # print(f"Biomes not seen: {biomesNotSeen}")
                     # print(f"{len(biomesNotSeen)} left")
 
                     # check if all biomes are greater than 0.0
                     if allBiomesMode < 2:
-                        containsAllBiomes = all(biomePercents[biome] > 0.0 for biome in biomeToColor.keys())
+                        containsAllBiomes = all(biomeFractions[biome] > 0.0 for biome in biomeToColor.keys())
                     
                     if allBiomesMode == 1 and not containsAllBiomes:
                         print("\tSeed does not contain all biomes!")
@@ -339,28 +339,28 @@ if __name__ == "__main__":
                             shouldSaveSeed = True
                             reasons.append(f"spawn-{spawnBiomeOverlap}")
 
-                        # check if any of the priority biomes are larger than the best biome percents
+                        # check if any of the priority biomes are larger than the best biome fractions
                         # and save the image and the seedID if they are
                         for biome, biomeCutoff in priorityBiomes.items():
-                            if biome in biomePercents:
-                                # if the biomeCutoff is greater than 0.0, check if the biome percent is greater than the cutoff
+                            if biome in biomeFractions:
+                                # if the biomeCutoff is greater than 0.0, check if the biome fraction is greater than the cutoff
                                 if biomeCutoff > 0.0:
-                                    if biomePercents[biome] > biomeCutoff:
-                                        print(f"\t{biome}: {biomePercents[biome]} > cutoff:{biomeCutoff}!")
-                                        priorityBiomesToBest[biome] = biomePercents[biome]
+                                    if biomeFractions[biome] > biomeCutoff:
+                                        print(f"\t{biome}: {biomeFractions[biome]} > cutoff:{biomeCutoff}!")
+                                        priorityBiomesToBest[biome] = biomeFractions[biome]
                                         shouldSaveSeed = True
-                                        reasons.append(f"found-{biome}-{biomePercents[biome]:.2}")
-                                # if the biomeCutoff is 0.0, check if the biome percent is greater than the best biome percent seen so far
+                                        reasons.append(f"found-{biome}-{biomeFractions[biome]:.2}")
+                                # if the biomeCutoff is 0.0, check if the biome fraction is greater than the best biome fraction seen so far
                                 elif biomeCutoff == 0.0:
-                                    if biomePercents[biome] > priorityBiomesToBest[biome]:
+                                    if biomeFractions[biome] > priorityBiomesToBest[biome]:
                                         print(f"\tFound new best {biome} biome!")
-                                        priorityBiomesToBest[biome] = biomePercents[biome]
+                                        priorityBiomesToBest[biome] = biomeFractions[biome]
                                         shouldSaveSeed = True
-                                        reasons.append(f"best-{biome}-{biomePercents[biome]:.2}")
+                                        reasons.append(f"best-{biome}-{biomeFractions[biome]:.2}")
 
                         if shouldSaveSeed:
                             imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
-                            saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomePercents, biomeToColor.keys())
+                            saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomeFractions, biomeToColor.keys())
                             seedID += 1
 
                     # save the seed to the seedsChecked file
