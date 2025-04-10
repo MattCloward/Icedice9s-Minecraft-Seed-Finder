@@ -336,7 +336,7 @@ if __name__ == "__main__":
                         spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
                         if spawnBiomeOverlap:
                             spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
-                            print(f"Found {spawnBiomeOverlap} biome(s) at spawn!")
+                            reasonsToPrint.append(f"Found {spawnBiomeOverlap} biome(s) at spawn!")
                             shouldSaveSeed = True
                             reasons.append(f"spawn-{spawnBiomeOverlap}")
 
