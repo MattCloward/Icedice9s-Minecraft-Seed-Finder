@@ -19,7 +19,7 @@ windowWildcard = "Biome Finder - Minecraft App"
 # if the value is set to 0, it will search for the highest value of the biome
 # set to {} if you don't want to prioritize any biomes
 # ex: priorityBiomes = {"pale_garden": 0.0, "plains": 0.01}
-priorityBiomes = {"pale_garden": 0.005}
+priorityBiomes = {"pale_garden": 0.003}
 # set the biome(s) that should be in the center of the map (use the same names as in biome_colors.tsv)
 # set to [] if you don't want to check for a specific biome in the center of the map
 requestedSpawnBiomes = ["pale_garden"]
@@ -293,6 +293,7 @@ if __name__ == "__main__":
                 else:
                     shouldSaveSeed = False
                     containsAllBiomes = False
+                    reasonsToPrint = []
                     reasons = []
                     # put the screen captures in np format for processing
                     np_image = np.array(screen)
@@ -323,10 +324,10 @@ if __name__ == "__main__":
                         containsAllBiomes = all(biomeFractions[biome] > 0.0 for biome in biomeToColor.keys())
                     
                     if allBiomesMode == 1 and not containsAllBiomes:
-                        print("\tSeed does not contain all biomes!")
+                        shouldSaveSeed = False
                     else:
                         if containsAllBiomes:
-                            print(f"\tSeed contains all biomes!")
+                            reasonsToPrint.append("Seed contains all biomes!")
                             reasons.append("all-biomes")
                             if allBiomesMode == 0:
                                 shouldSaveSeed = True
@@ -335,7 +336,7 @@ if __name__ == "__main__":
                         spawnBiomeOverlap = set(requestedSpawnBiomes).intersection(set(spawnBiomes)) if spawnBiomes is not None else set()
                         if spawnBiomeOverlap:
                             spawnBiomeOverlap = "|".join(spawnBiomeOverlap)
-                            print(f"\tFound {spawnBiomeOverlap} biome(s) at spawn!")
+                            print(f"Found {spawnBiomeOverlap} biome(s) at spawn!")
                             shouldSaveSeed = True
                             reasons.append(f"spawn-{spawnBiomeOverlap}")
 
@@ -346,19 +347,20 @@ if __name__ == "__main__":
                                 # if the biomeCutoff is greater than 0.0, check if the biome fraction is greater than the cutoff
                                 if biomeCutoff > 0.0:
                                     if biomeFractions[biome] > biomeCutoff:
-                                        print(f"\t{biome}: {biomeFractions[biome]} > cutoff:{biomeCutoff}!")
+                                        reasonsToPrint.append(f"{biome}: {biomeFractions[biome]} > cutoff:{biomeCutoff}!")
                                         priorityBiomesToBest[biome] = biomeFractions[biome]
                                         shouldSaveSeed = True
                                         reasons.append(f"found-{biome}-{biomeFractions[biome]:.2}")
                                 # if the biomeCutoff is 0.0, check if the biome fraction is greater than the best biome fraction seen so far
                                 elif biomeCutoff == 0.0:
                                     if biomeFractions[biome] > priorityBiomesToBest[biome]:
-                                        print(f"\tFound new best {biome} biome!")
+                                        reasonsToPrint.append(f"Found new best {biome} biome!")
                                         priorityBiomesToBest[biome] = biomeFractions[biome]
                                         shouldSaveSeed = True
                                         reasons.append(f"best-{biome}-{biomeFractions[biome]:.2}")
 
                         if shouldSaveSeed:
+                            print("\t" + "\n\t".join(reasonsToPrint))
                             imagePath = f"./savedSeeds/{seedID}_{seed}.jpeg"
                             saveSeed(seedID, seed, "|".join(reasons), imagePath, cropped_screen, spawnBiomesStr, biomeFractions, biomeToColor.keys())
                             seedID += 1
