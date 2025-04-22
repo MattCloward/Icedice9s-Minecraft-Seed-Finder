@@ -84,14 +84,15 @@ def getBiomeFractionsFromImage(image, colorToBiome):
             fraction = count / totalPixels
             biomeFractions[biome] = fraction
         else:
-            print(f"WARNING: {color} not in biomeToColor dictionary!")
+            continue
+            # print(f"WARNING: {color} not in biomeToColor dictionary!")
             # DEBUG: display a mask of the unknown color in the image
-            mask = np.zeros(image.shape, dtype=np.uint8)
-            mask[image == color] = 255
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-            cv2.imshow("Unknown Color", mask)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # mask = np.zeros(image.shape, dtype=np.uint8)
+            # mask[image == color] = 255
+            # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            # cv2.imshow("Unknown Color", mask)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
     # add any missing biomes to the biomeFractions dictionary with a value of 0.0
     for biome in colorToBiome.values():
         if biome not in biomeFractions:
